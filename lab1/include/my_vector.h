@@ -25,7 +25,7 @@ public:
 
     ~MyVector() { delete[] data; }
 
-    MyVector(const MyVector& other) : data(nullptr), sz(0), cap(0) {
+    MyVector(const MyVector& other) : data(nullptr), sz(0), capacity(0) {
         reserve(other.cap);
         for (size_t i = 0; i < other.sz; ++i) {
             data[i] = other.data[i];

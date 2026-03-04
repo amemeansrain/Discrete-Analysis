@@ -5,8 +5,8 @@
 #include <iomanip>
 #include <cstring>
 
-#include "sort_logic.h"
-#include "my_vector.h"
+#include "../include/sort_logic.h"
+#include "../include/my_vector.h"
 
 using duration_t = std::chrono::microseconds;
 const std::string DURATION_PREFIX = "us";
