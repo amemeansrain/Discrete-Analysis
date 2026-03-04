@@ -1,9 +1,7 @@
 #include <iostream>
-#include <cstdio>
 #include "include/sort_logic.h"
 
 int main() {
-    // Ускоряем ввод-вывод
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
@@ -11,12 +9,13 @@ int main() {
     char p1, p2, p3;
     int num;
     
-    // Считываем по формату "A 000 AA"
     while (std::cin >> p1 >> num >> p2 >> p3) {
         Pair e;
-        sprintf(e.plate, "%c %03d %c%c", p1, num, p2, p3);
         
-        // Считываем остаток строки (значение после табуляции)
+        std::string num_str = std::to_string(num);
+        while (num_str.length() < 3) num_str = "0" + num_str;
+        e.key = p1 + " " + num_str + " " + p2;
+        
         std::string val;
         std::getline(std::cin, val);
         if (!val.empty() && val[0] == '\t') e.value = val.substr(1);
