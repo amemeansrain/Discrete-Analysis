@@ -12,7 +12,6 @@ def check():
         parts = line.split('\t')    
         current_key = parts[0]
         
-        # 1. Проверка порядка (Key_i >= Key_{i-1})
         if current_key < last_key:
             print(f"ОШИБКА ПОРЯДКА на строке {line_num}!")
             print(f"Текущий ключ:  [{current_key}]")
