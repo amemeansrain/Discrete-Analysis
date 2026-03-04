@@ -6,35 +6,35 @@
 template <typename T>
 class MyVector {
 private:
-    T* data;
-    size_t sz;
-    size_t cap;
+    T* data_;
+    size_t size_;
+    size_t capacity_;
 
-    void reserve(size_t new_cap) {
-        T* new_data = new T[new_cap];
-        for (size_t i = 0; i < sz; ++i) {
-            new_data[i] = std::move(data[i]);
+    void reserve_(size_t new_capacity) {
+        T* new_data = new T[new_capacity];
+        for (size_t i = 0; i < size_; ++i) {
+            new_data[i] = std::move(data_[i]);
         }
-        delete[] data;
-        data = new_data;
-        cap = new_cap;
+        delete[] data_;
+        data_ = new_data;
+        capacity_ = new_capacity;
     }
 
 public:
-    MyVector() : data(nullptr), sz(0), cap(0) {}
-    ~MyVector() { delete[] data; }
+    MyVector() : data_(nullptr), size_(0), capacity_(0) {}
+    ~MyVector() { delete[] data_; }
 
     MyVector(const MyVector&) = delete;
     MyVector& operator=(const MyVector&) = delete;
 
     void push_back(T&& value) {
-        if (sz == cap) reserve(cap == 0 ? 8 : cap * 2);
-        data[sz++] = std::move(value);
+        if (size_ == capacity_) reserve_(capacity_ == 0 ? 8 : capacity_ * 2);
+        data_[size_++] = std::move(value);
     }
 
-    T& operator[](size_t i) { return data[i]; }
-    const T& operator[](size_t i) const { return data[i]; }
-    size_t size() const { return sz; }
+    T& operator[](size_t i) { return data_[i]; }
+    const T& operator[](size_t i) const { return data_[i]; }
+    size_t size_() const { return size_; }
 };
 
 #endif
