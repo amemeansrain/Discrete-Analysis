@@ -55,13 +55,13 @@ struct Pair {
     std::string value;
 };
 
-int get_digit(const Pair& e, int step) {
+int get_digit(const Pair& p, int step) {
     switch (step) {
-        case 0: return e.plate[7] - 'A';
-        case 1: return e.plate[6] - 'A';
+        case 0: return p.plate[7] - 'A';
+        case 1: return p.plate[6] - 'A';
         case 2:
-            return (e.plate[2] - '0') * 100 + (e.plate[3] - '0') * 10 + (e.plate[4] - '0');
-        case 3: return e.plate[0] - 'A';
+            return (p.plate[2] - '0') * 100 + (p.plate[3] - '0') * 10 + (p.plate[4] - '0');
+        case 3: return p.plate[0] - 'A';
         default: return 0;
     }
 }
@@ -107,27 +107,27 @@ int main() {
     std::string p_last;
     
     while (std::cin >> p1 >> num >> p_last) {
-        Pair e;
+        Pair p;
         
-        e.plate[0] = p1;
-        e.plate[1] = ' ';
-        e.plate[2] = (num / 100) + '0';
-        e.plate[3] = ((num / 10) % 10) + '0';
-        e.plate[4] = (num % 10) + '0';
-        e.plate[5] = ' ';
-        e.plate[6] = p_last[0];
-        e.plate[7] = p_last[1];
-        e.plate[8] = '\0';
+        p.plate[0] = p1;
+        p.plate[1] = ' ';
+        p.plate[2] = (num / 100) + '0';
+        p.plate[3] = ((num / 10) % 10) + '0';
+        p.plate[4] = (num % 10) + '0';
+        p.plate[5] = ' ';
+        p.plate[6] = p_last[0];
+        p.plate[7] = p_last[1];
+        p.plate[8] = '\0';
         
         std::string val;
         std::getline(std::cin, val);
         if (!val.empty() && val[0] == '\t') {
-            e.value = val.substr(1);
+            p.value = val.substr(1);
         } else {
-            e.value = val;
+            p.value = val;
         }
 
-        data.push_back(std::move(e));
+        data.push_back(std::move(p));
     }
 
     radix_sort(data);

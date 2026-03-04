@@ -3,9 +3,10 @@
 #include <algorithm>
 #include <string>
 #include <iomanip>
+#include <cstring>
 
-#include "../include/sort_logic.h"
-#include "../include/my_vector.h"
+#include "sort_logic.h"
+#include "my_vector.h"
 
 using duration_t = std::chrono::microseconds;
 const std::string DURATION_PREFIX = "us";
@@ -23,7 +24,11 @@ int main() {
         size_t tab_pos = line.find('\t');
         if (tab_pos != std::string::npos) {
             Pair e;
-            e.plate = line.substr(0, tab_pos);
+            std::string plate_str = line.substr(0, tab_pos);
+            
+            size_t len = plate_str.copy(e.plate, 8);
+            e.plate[len] = '\0';
+            
             e.value = line.substr(tab_pos + 1);
             input.push_back(std::move(e));
         }
@@ -37,7 +42,7 @@ int main() {
     MyVector<Pair> input_stl;
     for(size_t i = 0; i < input.size(); ++i) {
         Pair e;
-        e.plate = input[i].key;
+        std::memcpy(e.plate, input[i].plate, 9);
         e.value = input[i].value;
         input_stl.push_back(std::move(e));
     }
@@ -56,13 +61,13 @@ int main() {
     
     std::stable_sort(&input_stl[0], &input_stl[0] + input_stl.size(), 
         [](const Pair& a, const Pair& b) {
-            return a.plate < b.plate;
+            return std::string_view(a.plate) < std::string_view(b.plate);
         });
         
     auto end_stl = std::chrono::high_resolution_clock::now();
 
     uint64_t stl_sort_ts = std::chrono::duration_cast<duration_t>(end_stl - start_stl).count();
-    std::cout << "Stable Sort:  " << stl_sort_ts << " " << DURATION_PREFIX << "\n";
+    std::cout << "Stable Sort:    " << stl_sort_ts << " " << DURATION_PREFIX << "\n";
     
     std::cout << "-----------------------------------\n";
     
