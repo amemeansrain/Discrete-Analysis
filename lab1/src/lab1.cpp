@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 template <typename T>
 class MyVector {
@@ -25,8 +26,8 @@ public:
 
     ~MyVector() { delete[] data; }
 
-    MyVector(const MyVector& other) : data(nullptr), sz(0), cap(0) {
-        reserve(other.cap);
+    MyVector(const MyVector& other) : data(nullptr), sz(0), capacity(0) {
+        reserve(other.capacity);
         for (size_t i = 0; i < other.sz; ++i) {
             data[i] = other.data[i];
         }
@@ -59,8 +60,10 @@ int get_digit(const Pair& e, int step) {
     switch (step) {
         case 0: return e.plate[7] - 'A';
         case 1: return e.plate[6] - 'A';
-        case 2: return (e.plate[2] - '0') * 100 + (e.plate[3] - '0') * 10 + (e.plate[4] - '0');
+        case 2:
+            return (e.plate[2] - '0') * 100 + (e.plate[3] - '0') * 10 + (e.plate[4] - '0');
         case 3: return e.plate[0] - 'A';
+        default: return 0;
     }
 }
 
@@ -69,22 +72,28 @@ void radix_sort(MyVector<Pair>& vec) {
     if (n < 2) return;
 
     Pair* temp = new Pair[n];
-    Pair* original = &vec[0];
-    Pair* result = temp;
+    Pair* src = &vec[0];
+    Pair* dst = temp;
 
     for (int step = 0; step < 4; ++step) {
         int range = (step == 2) ? 1000 : 26;
         int count[1000] = {0};
 
-        for (size_t i = 0; i < n; ++i) count[get_digit(original[i], step)]++;
+        for (size_t i = 0; i < n; ++i) count[get_digit(src[i], step)]++;
         for (int i = 1; i < range; ++i) count[i] += count[i - 1];
         
         for (int i = (int)n - 1; i >= 0; --i) {
-            int d = get_digit(original[i], step);
-            result[--count[d]] = std::move(original[i]);
+            int d = get_digit(src[i], step);
+            dst[--count[d]] = std::move(src[i]);
         }
         
-        std::swap(original, result);
+        std::swap(src, dst);
+    }
+
+    if (src != &vec[0]) {
+        for (size_t i = 0; i < n; ++i) {
+            vec[i] = std::move(src[i]);
+        }
     }
     delete[] temp;
 }
@@ -94,20 +103,30 @@ int main() {
     std::cin.tie(nullptr);
 
     MyVector<Pair> data;
-    char p1, p2, p3;
+    char p1;
     int num;
+    std::string p_last;
     
-    while (std::cin >> p1 >> num >> p2 >> p3) {
+    while (std::cin >> p1 >> num >> p_last) {
         Pair e;
         
-        std::string num_str = std::to_string(num);
-        while (num_str.length() < 3) num_str = "0" + num_str;
-        e.key = p1 + " " + num_str + " " + p2;
+        e.plate[0] = p1;
+        e.plate[1] = ' ';
+        e.plate[2] = (num / 100) + '0';
+        e.plate[3] = ((num / 10) % 10) + '0';
+        e.plate[4] = (num % 10) + '0';
+        e.plate[5] = ' ';
+        e.plate[6] = p_last[0];
+        e.plate[7] = p_last[1];
+        e.plate[8] = '\0';
         
         std::string val;
         std::getline(std::cin, val);
-        if (!val.empty() && val[0] == '\t') e.value = val.substr(1);
-        else e.value = val;
+        if (!val.empty() && val[0] == '\t') {
+            e.value = val.substr(1);
+        } else {
+            e.value = val;
+        }
 
         data.push_back(std::move(e));
     }
