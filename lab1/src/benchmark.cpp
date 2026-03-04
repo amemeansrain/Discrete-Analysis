@@ -4,8 +4,8 @@
 #include <string>
 #include <iomanip>
 
-#include "sort_logic.h"
-#include "my_vector.h"
+#include "../include/sort_logic.h"
+#include "../include/my_vector.h"
 
 using duration_t = std::chrono::microseconds;
 const std::string DURATION_PREFIX = "us";
@@ -14,7 +14,7 @@ int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(0);
 
-    MyVector<Entry> input;
+    MyVector<Pair> input;
     std::string line;
 
     while (std::getline(std::cin, line)) {
@@ -22,8 +22,8 @@ int main() {
 
         size_t tab_pos = line.find('\t');
         if (tab_pos != std::string::npos) {
-            Entry e;
-            e.key = line.substr(0, tab_pos);
+            Pair e;
+            e.plate = line.substr(0, tab_pos);
             e.value = line.substr(tab_pos + 1);
             input.push_back(std::move(e));
         }
@@ -34,10 +34,10 @@ int main() {
         return 0;
     }
 
-    MyVector<Entry> input_stl;
+    MyVector<Pair> input_stl;
     for(size_t i = 0; i < input.size(); ++i) {
-        Entry e;
-        e.key = input[i].key;
+        Pair e;
+        e.plate = input[i].key;
         e.value = input[i].value;
         input_stl.push_back(std::move(e));
     }
@@ -55,8 +55,8 @@ int main() {
     auto start_stl = std::chrono::high_resolution_clock::now();
     
     std::stable_sort(&input_stl[0], &input_stl[0] + input_stl.size(), 
-        [](const Entry& a, const Entry& b) {
-            return a.key < b.key;
+        [](const Pair& a, const Pair& b) {
+            return a.plate < b.plate;
         });
         
     auto end_stl = std::chrono::high_resolution_clock::now();

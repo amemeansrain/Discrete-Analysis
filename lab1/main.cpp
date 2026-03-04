@@ -6,22 +6,32 @@ int main() {
     std::cin.tie(nullptr);
 
     MyVector<Pair> data;
-    char p1, p2, p3;
+    char p1;
     int num;
+    std::string p_last;
     
-    while (std::cin >> p1 >> num >> p2 >> p3) {
-        Pair e;
+    while (std::cin >> p1 >> num >> p_last) {
+        Pair p;
         
-        std::string num_str = std::to_string(num);
-        while (num_str.length() < 3) num_str = "0" + num_str;
-        e.key = p1 + " " + num_str + " " + p2;
+        p.plate[0] = p1;
+        p.plate[1] = ' ';
+        p.plate[2] = (num / 100) + '0';
+        p.plate[3] = ((num / 10) % 10) + '0';
+        p.plate[4] = (num % 10) + '0';
+        p.plate[5] = ' ';
+        p.plate[6] = p_last[0];
+        p.plate[7] = p_last[1];
+        p.plate[8] = '\0';
         
         std::string val;
         std::getline(std::cin, val);
-        if (!val.empty() && val[0] == '\t') e.value = val.substr(1);
-        else e.value = val;
+        if (!val.empty() && val[0] == '\t') {
+            p.value = val.substr(1);
+        } else {
+            p.value = val;
+        }
 
-        data.push_back(std::move(e));
+        data.push_back(std::move(p));
     }
 
     radix_sort(data);
