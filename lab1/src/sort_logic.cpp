@@ -1,6 +1,6 @@
-#include "sort_logic.h"
+#include "../include/sort_logic.h"
 
-int get_digit(const Entry& e, int step) {
+int get_digit(const Pair& e, int step) {
     switch (step) {
         case 0: return e.plate[7] - 'A';
         case 1: return e.plate[6] - 'A';
@@ -9,13 +9,13 @@ int get_digit(const Entry& e, int step) {
     }
 }
 
-void radix_sort(MyVector<Entry>& vec) {
+void radix_sort(MyVector<Pair>& vec) {
     size_t n = vec.size();
     if (n < 2) return;
 
-    Entry* temp = new Entry[n];
-    Entry* original = &vec[0];
-    Entry* result = temp;
+    Pair* temp = new Pair[n];
+    Pair* original = &vec[0];
+    Pair* result = temp;
 
     for (int step = 0; step < 4; ++step) {
         int range = (step == 2) ? 1000 : 26;

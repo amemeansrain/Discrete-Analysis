@@ -2,14 +2,14 @@
 #include <chrono>
 #include <random>
 #include <cstring>
-#include "sort_logic.h"
+#include "../include/sort_logic.h"
 
 // Функция генерации данных (ЗАПОЛНЕНИЕ)
-void fill_random(MyVector<Entry>& vec, size_t count) {
+void fill_random(MyVector<Pair>& vec, size_t count) {
     const char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
     for (size_t i = 0; i < count; ++i) {
-        Entry e;
+        Pair e;
         
         // Генерируем формат A 999 BC
         char p1 = letters[rand() % 26];
@@ -30,7 +30,7 @@ void fill_random(MyVector<Entry>& vec, size_t count) {
 
 // Та самая функция run_test, про которую мы говорили
 void run_test(size_t N) {
-    MyVector<Entry> test_data;
+    MyVector<Pair> test_data;
     
     // 1. Сначала наполняем (этот цикл НЕ замеряем)
     fill_random(test_data, N);

@@ -9,12 +9,7 @@ def check():
         if not line: continue
         line_num += 1
         
-        # Разделяем строку по табуляции
-        parts = line.split('\t')
-        if len(parts) < 2:
-            print(f"Ошибка формата на строке {line_num}: нет табуляции")
-            sys.exit(1)
-            
+        parts = line.split('\t')    
         current_key = parts[0]
         
         # 1. Проверка порядка (Key_i >= Key_{i-1})

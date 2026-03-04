@@ -17,26 +17,26 @@ benchmark: benchmark.o $(LOGIC_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # Компиляция main.cpp
-main.o: main.cpp sort_logic.h my_vector.h
+main.o: main.cpp include/sort_logic.h include/my_vector.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Компиляция benchmark.cpp
-benchmark.o: benchmark.cpp sort_logic.h my_vector.h
+benchmark.o: src/benchmark.cpp include/sort_logic.h include/my_vector.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Компиляция sort_logic.cpp
-sort_logic.o: sort_logic.cpp sort_logic.h my_vector.h
+sort_logic.o: src/sort_logic.cpp include/sort_logic.h include/my_vector.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Цель для тестирования (требует Python 3)
 test: solution
 	@echo "Генерация данных..."
-	@python3 gen.py 100000 > test_input.txt
+	@python3 py/gen.py 100000 > test_input.txt
 	@echo "Запуск сортировки..."
 	@./solution < test_input.txt > test_output.txt
 	@echo "Проверка результата..."
-	@python3 check.py < test_output.txt
-	@rm -f test_input.txt test_output.txt
+	@python3 py/check.py < test_output.txt
+	# @rm -f test_input.txt test_output.txt
 
 # Очистка
 clean:

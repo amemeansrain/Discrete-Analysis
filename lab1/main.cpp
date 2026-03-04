@@ -1,19 +1,19 @@
 #include <iostream>
 #include <cstdio>
-#include "sort_logic.h"
+#include "include/sort_logic.h"
 
 int main() {
     // Ускоряем ввод-вывод
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    MyVector<Entry> data;
+    MyVector<Pair> data;
     char p1, p2, p3;
     int num;
     
     // Считываем по формату "A 000 AA"
     while (std::cin >> p1 >> num >> p2 >> p3) {
-        Entry e;
+        Pair e;
         sprintf(e.plate, "%c %03d %c%c", p1, num, p2, p3);
         
         // Считываем остаток строки (значение после табуляции)
