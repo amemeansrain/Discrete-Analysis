@@ -23,14 +23,14 @@ int main() {
 
         size_t tab_pos = line.find('\t');
         if (tab_pos != std::string::npos) {
-            Pair e;
+            Pair p;
             std::string plate_str = line.substr(0, tab_pos);
             
-            size_t len = plate_str.copy(e.plate, 8);
-            e.plate[len] = '\0';
+            size_t len = plate_str.copy(p.plate, 8);
+            p.plate[len] = '\0';
             
-            e.value = line.substr(tab_pos + 1);
-            input.push_back(std::move(e));
+            p.value = line.substr(tab_pos + 1);
+            input.push_back(std::move(p));
         }
     }
 
@@ -41,10 +41,10 @@ int main() {
 
     MyVector<Pair> input_stl;
     for(size_t i = 0; i < input.size(); ++i) {
-        Pair e;
-        std::memcpy(e.plate, input[i].plate, 9);
-        e.value = input[i].value;
-        input_stl.push_back(std::move(e));
+        Pair p;
+        std::memcpy(p.plate, input[i].plate, 9);
+        p.value = input[i].value;
+        input_stl.push_back(std::move(p));
     }
 
     std::cout << "Amount of lines: " << input.size() << "\n";

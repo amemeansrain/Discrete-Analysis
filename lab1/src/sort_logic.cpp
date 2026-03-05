@@ -1,11 +1,11 @@
 #include "../include/sort_logic.h"
 
-int get_digit(const Pair& e, int step) {
+int get_digit(const Pair& p, int step) {
     switch (step) {
-        case 0: return e.plate[7] - 'A';
-        case 1: return e.plate[6] - 'A';
-        case 2: return (e.plate[2] - '0') * 100 + (e.plate[3] - '0') * 10 + (e.plate[4] - '0');
-        case 3: return e.plate[0] - 'A';
+        case 0: return p.plate[7] - 'A';
+        case 1: return p.plate[6] - 'A';
+        case 2: return (p.plate[2] - '0') * 100 + (p.plate[3] - '0') * 10 + (p.plate[4] - '0');
+        case 3: return p.plate[0] - 'A';
     }
 }
 
