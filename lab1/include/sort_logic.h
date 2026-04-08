@@ -9,7 +9,7 @@ struct Pair {
     std::string value;
 };
 
-int get_digit(const Pair& e, int step);
+int get_digit(const Pair& p, int step);
 
 void radix_sort(MyVector<Pair>& vec);
 
