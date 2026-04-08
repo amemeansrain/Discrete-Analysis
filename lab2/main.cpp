@@ -24,20 +24,42 @@ struct Patricia {
     }
 
     ~Patricia() {
-        unordered_set<Node*> vis;
-        clear(header, vis);
+        // Итеративная очистка вместо рекурсии
+        clearIterative();
+        delete header;
     }
 
-    void clear(Node* node, unordered_set<Node*>& vis) {
-        if (!node || vis.count(node)) return;
-        vis.insert(node);
+    // Итеративное удаление всех узлов, кроме header
+    void clearIterative() {
+        if (header->left == header) return;
 
-        if (node->left && node->left->bitIndex > node->bitIndex)
-            clear(node->left, vis);
-        if (node->right && node->right->bitIndex > node->bitIndex)
-            clear(node->right, vis);
+        stack<Node*> stk;
+        unordered_set<Node*> visited;
+        stk.push(header->left);
 
-        delete node;
+        while (!stk.empty()) {
+            Node* node = stk.top();
+            if (!node || visited.count(node)) {
+                stk.pop();
+                continue;
+            }
+
+            bool pushed = false;
+            if (node->left && node->left->bitIndex > node->bitIndex && !visited.count(node->left)) {
+                stk.push(node->left);
+                pushed = true;
+            }
+            if (node->right && node->right->bitIndex > node->bitIndex && !visited.count(node->right)) {
+                stk.push(node->right);
+                pushed = true;
+            }
+
+            if (!pushed) {
+                visited.insert(node);
+                stk.pop();
+                delete node;
+            }
+        }
     }
 
     static string toLower(string s) {
@@ -46,6 +68,7 @@ struct Patricia {
     }
 
     static int getBit(const string& s, int bit) {
+        // bit всегда >= 0 (кроме случаев ошибок, которые мы исправили)
         int byte = bit / 8;
         int offset = 7 - (bit % 8);
         if (byte >= (int)s.size()) return 0;
@@ -147,6 +170,7 @@ struct Patricia {
         if (curr == header || curr->key != key)
             return false;
 
+        // Случай: удаляемый узел — единственный (нет потомков с бо́льшим bitIndex)
         if (curr == parent) {
             if (curr == header->left) {
                 header->left = header;
@@ -160,35 +184,64 @@ struct Patricia {
             return true;
         }
 
+        // Копируем данные из parent в curr
         curr->key = parent->key;
         curr->value = parent->value;
 
+        // Определяем потомка parent, который станет на место parent
         Node* child;
         if (getBit(parent->key, parent->bitIndex))
-            child = parent->left;
+            child = parent->left;   // правый указатель parent указывал на parent
         else
-            child = parent->right;
+            child = parent->right;  // левый указатель parent указывал на parent
 
-        if (getBit(parent->key, grand->bitIndex))
-            grand->right = child;
-        else
+        // Подвешиваем child к grand
+        // ИСПРАВЛЕНО: если grand == header, то модифицируем header->left (корень всегда там)
+        if (grand == header) {
             grand->left = child;
+        } else {
+            if (getBit(parent->key, grand->bitIndex))
+                grand->right = child;
+            else
+                grand->left = child;
+        }
 
         delete parent;
         return true;
     }
 
-    void collect(Node* node, vector<pair<string,uint64_t>>& res, unordered_set<Node*>& vis) {
-        if (!node || vis.count(node)) return;
-        vis.insert(node);
+    // Итеративный сбор всех пар (key, value)
+    void collectIterative(vector<pair<string,uint64_t>>& res) {
+        if (header->left == header) return;
 
-        if (node != header)
-            res.push_back({node->key, node->value});
+        stack<Node*> stk;
+        unordered_set<Node*> visited;
+        stk.push(header->left);
 
-        if (node->left && node->left->bitIndex > node->bitIndex)
-            collect(node->left, res, vis);
-        if (node->right && node->right->bitIndex > node->bitIndex)
-            collect(node->right, res, vis);
+        while (!stk.empty()) {
+            Node* node = stk.top();
+            if (!node || visited.count(node)) {
+                stk.pop();
+                continue;
+            }
+
+            bool pushed = false;
+            if (node->left && node->left->bitIndex > node->bitIndex && !visited.count(node->left)) {
+                stk.push(node->left);
+                pushed = true;
+            }
+            if (node->right && node->right->bitIndex > node->bitIndex && !visited.count(node->right)) {
+                stk.push(node->right);
+                pushed = true;
+            }
+
+            if (!pushed) {
+                visited.insert(node);
+                stk.pop();
+                if (node != header)
+                    res.emplace_back(node->key, node->value);
+            }
+        }
     }
 
     bool save(const string& path, string& err) {
@@ -199,8 +252,7 @@ struct Patricia {
         }
 
         vector<pair<string,uint64_t>> data;
-        unordered_set<Node*> vis;
-        collect(header->left, data, vis);
+        collectIterative(data);   // используем итеративную версию
 
         uint64_t sz = data.size();
         if (!out.write((char*)&sz, sizeof(sz))) {
@@ -208,9 +260,8 @@ struct Patricia {
             return false;
         }
 
-        for (auto& [k,v] : data) {
+        for (auto& [k, v] : data) {
             uint64_t len = k.size();
-
             if (!out.write((char*)&len, sizeof(len)) ||
                 !out.write(k.data(), len) ||
                 !out.write((char*)&v, sizeof(v))) {
@@ -218,7 +269,6 @@ struct Patricia {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -239,29 +289,24 @@ struct Patricia {
 
         for (uint64_t i = 0; i < sz; i++) {
             uint64_t len;
-
             if (!in.read((char*)&len, sizeof(len))) {
                 err = "bad file format";
                 return false;
             }
-
             if (len > 256) {
                 err = "bad file format";
                 return false;
             }
-
             string key(len, '\0');
             if (!in.read(&key[0], len)) {
                 err = "bad file format";
                 return false;
             }
-
             uint64_t val;
             if (!in.read((char*)&val, sizeof(val))) {
                 err = "bad file format";
                 return false;
             }
-
             if (!temp.insert(key, val)) {
                 err = "bad file format";
                 return false;
@@ -292,7 +337,7 @@ int main() {
             if (line[0] == '+') {
                 string word;
                 uint64_t val;
-                stringstream ss(line.substr(1));
+                istringstream ss(line.substr(1));
                 ss >> word >> val;
 
                 if (dict.insert(word, val))
@@ -310,7 +355,7 @@ int main() {
             }
             else if (line[0] == '!') {
                 string bang, cmd, path;
-                stringstream ss(line);
+                istringstream ss(line);
                 ss >> bang >> cmd >> path;
 
                 string err;
@@ -341,4 +386,5 @@ int main() {
             cout << "ERROR: exception\n";
         }
     }
+    return 0;
 }
