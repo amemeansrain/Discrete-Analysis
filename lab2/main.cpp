@@ -26,7 +26,9 @@ private:
 
     void destroy(Node* curr) {
         if (!curr) return;
-        for (auto& edge : curr->children) destroy(edge.second);
+        for (auto& edge : curr->children) {
+            destroy(edge.second);
+        }
         delete curr;
     }
 
@@ -41,10 +43,14 @@ private:
             if (curr->children[k].first == c) {
                 Node* next_node = curr->children[k].second;
                 size_t j = 0;
-                while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) j++;
+                while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) {
+                    j++;
+                }
+                
                 if (j != next_node->text.length()) return false;
 
                 if (erase_rec(next_node, key, i + j)) {
+                    // Удаление узла или слияние веток
                     if (!next_node->is_word && next_node->children.empty()) {
                         delete next_node;
                         curr->children.erase(curr->children.begin() + static_cast<long>(k));
@@ -53,7 +59,8 @@ private:
                         next_node->text += only_child->text;
                         next_node->is_word = only_child->is_word;
                         next_node->val = only_child->val;
-                        next_node->children = move(only_child->children);
+                        vector<pair<char, Node*>> temp_children = move(only_child->children);
+                        next_node->children = move(temp_children);
                         delete only_child;
                     }
                     return true;
@@ -65,8 +72,11 @@ private:
     }
 
     void collect_all(Node* curr, string prefix, vector<pair<string, uint64_t>>& res) const {
-        if (curr->is_word) res.push_back({prefix, curr->val});
-        for (const auto& edge : curr->children) collect_all(edge.second, prefix + edge.second->text, res);
+        string current_prefix = prefix + curr->text;
+        if (curr->is_word) res.push_back({current_prefix, curr->val});
+        for (const auto& edge : curr->children) {
+            collect_all(edge.second, current_prefix, res);
+        }
     }
 
 public:
@@ -84,7 +94,13 @@ public:
         while (i < key.length()) {
             char c = key[i];
             Node* next_node = nullptr;
-            for (auto& edge : curr->children) { if (edge.first == c) { next_node = edge.second; break; } }
+            size_t edge_idx = 0;
+            for (; edge_idx < curr->children.size(); ++edge_idx) {
+                if (curr->children[edge_idx].first == c) {
+                    next_node = curr->children[edge_idx].second;
+                    break;
+                }
+            }
 
             if (!next_node) {
                 curr->children.push_back({c, new Node(key.substr(i), val, true)});
@@ -92,24 +108,34 @@ public:
             }
 
             size_t j = 0;
-            while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) j++;
+            while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) {
+                j++;
+            }
 
             if (j == next_node->text.length()) {
                 i += j;
                 if (i == key.length()) {
                     if (next_node->is_word) return false;
-                    next_node->is_word = true; next_node->val = val; return true;
+                    next_node->is_word = true; 
+                    next_node->val = val; 
+                    return true;
                 }
                 curr = next_node;
             } else {
                 Node* split = new Node(next_node->text.substr(j), next_node->val, next_node->is_word);
                 split->children = move(next_node->children);
+                
                 next_node->text = next_node->text.substr(0, j);
                 next_node->is_word = false;
                 next_node->children.clear();
                 next_node->children.push_back({split->text[0], split});
-                if (i + j == key.length()) { next_node->is_word = true; next_node->val = val; }
-                else next_node->children.push_back({key[i + j], new Node(key.substr(i + j), val, true)});
+                
+                if (i + j == key.length()) {
+                    next_node->is_word = true; 
+                    next_node->val = val;
+                } else {
+                    next_node->children.push_back({key[i + j], new Node(key.substr(i + j), val, true)});
+                }
                 return true;
             }
         }
@@ -117,28 +143,44 @@ public:
     }
 
     bool find(const string& key, uint64_t& out_val) const {
-        Node* curr = root; size_t i = 0;
+        Node* curr = root; 
+        size_t i = 0;
         while (i < key.length()) {
-            char c = key[i]; Node* next = nullptr;
-            for (auto& edge : curr->children) if (edge.first == c) next = edge.second;
+            char c = key[i]; 
+            Node* next = nullptr;
+            for (auto& edge : curr->children) {
+                if (edge.first == c) next = edge.second;
+            }
             if (!next) return false;
+            
             size_t j = 0;
-            while (j < next->text.length() && i + j < key.length() && next->text[j] == key[i + j]) j++;
+            while (j < next->text.length() && i + j < key.length() && next->text[j] == key[i + j]) {
+                j++;
+            }
+            
             if (j != next->text.length()) return false;
-            i += j; curr = next;
+            i += j; 
+            curr = next;
         }
-        if (curr->is_word) { out_val = curr->val; return true; }
+        if (curr->is_word) { 
+            out_val = curr->val; 
+            return true; 
+        }
         return false;
     }
 
-    bool erase(const string& key) { return erase_rec(root, key, 0); }
+    bool erase(const string& key) { 
+        return erase_rec(root, key, 0); 
+    }
 
     bool save(const string& path, string& err) const {
-        if (path.empty()) { err = "No such file or directory"; return false; }
+        if (path.empty()) { err = "No path provided"; return false; }
         ofstream out(path, ios::binary);
         if (!out) { err = strerror(errno); return false; }
+        
         vector<pair<string, uint64_t>> data;
         collect_all(root, "", data);
+        
         uint64_t sz = data.size();
         out.write((char*)&sz, sizeof(sz));
         for (auto& p : data) {
@@ -151,16 +193,31 @@ public:
     }
 
     bool load(const string& path, string& err) {
-        if (path.empty()) { err = "No such file or directory"; return false; }
+        if (path.empty()) { err = "No path provided"; return false; }
         ifstream in(path, ios::binary);
-        if (!in) { clear(); return true; } // Важное условие: нет файла -> пустое дерево и OK
+        if (!in) { 
+            clear(); 
+            return true; 
+        }
 
-        Patricia temp; uint64_t sz;
-        if (!in.read((char*)&sz, sizeof(sz))) { clear(); return true; }
+        Patricia temp; 
+        uint64_t sz;
+        if (!in.read((char*)&sz, sizeof(sz))) { 
+            clear(); 
+            return true; 
+        }
+        
         for (uint64_t i = 0; i < sz; i++) {
-            uint32_t len; if (!in.read((char*)&len, sizeof(len))) return false;
-            string k(len, '\0'); if (!in.read(&k[0], len)) return false;
-            uint64_t v; if (!in.read((char*)&v, sizeof(v))) return false;
+            uint32_t len; 
+            if (!in.read((char*)&len, sizeof(len))) return false;
+            if (len > 256) return false; // Защита от некорректного формата
+            
+            string k(len, '\0'); 
+            if (!in.read(&k[0], len)) return false;
+            
+            uint64_t v; 
+            if (!in.read((char*)&v, sizeof(v))) return false;
+            
             temp.insert(k, v);
         }
         swap(root, temp.root);
@@ -169,34 +226,48 @@ public:
 };
 
 int main() {
-    ios::sync_with_stdio(false); cin.tie(nullptr);
-    Patricia dict; string line;
+    ios::sync_with_stdio(false); 
+    cin.tie(nullptr);
+    
+    Patricia dict; 
+    string line;
     while (getline(cin, line)) {
         if (line.empty()) continue;
-        istringstream iss(line); string cmd; iss >> cmd;
+        istringstream iss(line); 
+        string cmd; 
+        iss >> cmd;
+        
         if (cmd == "+") {
             string w; uint64_t v;
             if (iss >> w >> v) {
                 for (auto& c : w) c = (char)tolower(c);
-                if (dict.insert(w, v)) cout << "OK\n"; else cout << "Exist\n";
+                if (dict.insert(w, v)) cout << "OK\n"; 
+                else cout << "Exist\n";
             }
         } else if (cmd == "-") {
-            string w; if (iss >> w) {
+            string w; 
+            if (iss >> w) {
                 for (auto& c : w) c = (char)tolower(c);
-                if (dict.erase(w)) cout << "OK\n"; else cout << "NoSuchWord\n";
+                if (dict.erase(w)) cout << "OK\n"; 
+                else cout << "NoSuchWord\n";
             }
         } else if (cmd == "!") {
-            string act, path; iss >> act;
-            if (!(iss >> path)) path = ""; // Обработка случая без пути
+            string act, path; 
+            iss >> act >> path;
             string err;
             if (act == "Save") {
-                if (dict.save(path, err)) cout << "OK\n"; else cout << "ERROR: " << err << "\n";
+                if (dict.save(path, err)) cout << "OK\n"; 
+                else cout << "ERROR: " << err << "\n";
             } else if (act == "Load") {
-                if (dict.load(path, err)) cout << "OK\n"; else cout << "ERROR: " << err << "\n";
+                if (dict.load(path, err)) cout << "OK\n"; 
+                else cout << "ERROR: " << err << "\n";
             }
         } else {
-            string w = cmd; for (auto& c : w) c = (char)tolower(c);
-            uint64_t v; if (dict.find(w, v)) cout << "OK: " << v << "\n"; else cout << "NoSuchWord\n";
+            string w = cmd; 
+            for (auto& c : w) c = (char)tolower(c);
+            uint64_t v; 
+            if (dict.find(w, v)) cout << "OK: " << v << "\n"; 
+            else cout << "NoSuchWord\n";
         }
     }
     return 0;
