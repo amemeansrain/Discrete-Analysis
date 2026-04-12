@@ -2,13 +2,11 @@ import random
 import string
 import sys
 
-# Константы по условию
 MAX_KEY_LEN = 256
 MAX_VAL = 2**64 - 1
 
 def gen_word():
-    # Генерируем слова разной длины, чтобы проверить склейку узлов
-    length = random.randint(1, 15) 
+    length = random.randint(1, MAX_KEY_LEN)
     return ''.join(random.choice(string.ascii_letters) for _ in range(length))
 
 def run_generator(count):
@@ -19,7 +17,7 @@ def run_generator(count):
     for _ in range(count):
         choice = random.random()
         
-        if choice < 0.4:  # Добавление (+)
+        if choice < 0.4:  # +
             word = gen_word()
             val = random.randint(0, MAX_VAL)
             word_low = word.lower()
@@ -31,7 +29,7 @@ def run_generator(count):
                 test_dict[word_low] = val
                 answers.append("OK")
                 
-        elif choice < 0.7:  # Поиск
+        elif choice < 0.7:  # find
             word = gen_word()
             word_low = word.lower()
             
@@ -41,7 +39,7 @@ def run_generator(count):
             else:
                 answers.append("NoSuchWord")
                 
-        else:  # Удаление (-)
+        else:  # -
             word = gen_word()
             word_low = word.lower()
             
@@ -57,13 +55,9 @@ def run_generator(count):
         f_ans.write("\n".join(answers) + "\n")
 
 if __name__ == "__main__":
-    # Читаем количество тестов из аргументов
-    n = 1000
+    n = 100000
     if len(sys.argv) > 1:
-        try:
-            n = int(sys.argv[1])
-        except ValueError:
-            print("Invalid number of tests, using default 1000")
-            
+        n = int(sys.argv[1])
+
     run_generator(n)
-    print(f"Generated {n} tests in input.txt")
+    print(f"Generated {n} tests")

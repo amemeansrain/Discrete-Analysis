@@ -1,5 +1,16 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <chrono>
+#include <random>
+#include <map>
+#include <algorithm>
+#include <iomanip>
+
 using namespace std;
+using namespace std::chrono;
+
+// ================= PATRICIA =================
 
 struct Node {
     string key;
@@ -17,7 +28,8 @@ private:
     Node* header;
 
     static string toLower(string s) {
-        for (char& c : s) c = tolower(c);
+        for (char& c : s)
+            c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
         return s;
     }
 
@@ -29,12 +41,12 @@ private:
     }
 
     static int firstDiff(const string& a, const string& b) {
-        int maxLen = max(a.size(), b.size()) * 8;
+        int maxLen = static_cast<int>(max(a.size(), b.size()) * 8);
         for (int i = 0; i < maxLen; i++) {
             if (getBit(a, i) != getBit(b, i))
                 return i;
         }
-        return -1;
+        return 0;
     }
 
     Node* searchNode(const string& key) const {
@@ -155,3 +167,77 @@ public:
         return true;
     }
 };
+
+// ================= BENCH =================
+
+string gen_random_string(int len) {
+    static const char alphanum[] = "abcdefghijklmnopqrstuvwxyz";
+    string s;
+    s.reserve(len);
+    for (int i = 0; i < len; ++i)
+        s += alphanum[rand() % 26];
+    return s;
+}
+
+void run_total_bench(int N) {
+    vector<string> words;
+    words.reserve(N);
+
+    for (int i = 0; i < N; ++i)
+        words.push_back(gen_random_string(rand() % 33)); // короче строки → честнее
+
+    // --- PATRICIA ---
+    auto p_start = high_resolution_clock::now();
+    {
+        Patricia pat;
+        uint64_t val;
+
+        for (int i = 0; i < N; ++i)
+            pat.insert(words[i], i);
+
+        for (int i = 0; i < N; ++i)
+            pat.find(words[i], val);
+
+        for (int i = 0; i < N; ++i)
+            pat.erase(words[i]);
+    }
+    auto p_end = high_resolution_clock::now();
+
+    // --- STD::MAP ---
+    auto m_start = high_resolution_clock::now();
+    {
+        map<string, uint64_t> mp;
+
+        for (int i = 0; i < N; ++i)
+            mp[words[i]] = i;
+
+        for (int i = 0; i < N; ++i)
+            mp.find(words[i]);
+
+        for (int i = 0; i < N; ++i)
+            mp.erase(words[i]);
+    }
+    auto m_end = high_resolution_clock::now();
+
+    auto p_total = duration_cast<milliseconds>(p_end - p_start).count();
+    auto m_total = duration_cast<milliseconds>(m_end - m_start).count();
+
+    cout << "| " << setw(10) << N
+         << " | " << setw(15) << p_total << " ms | "
+         << setw(15) << m_total << " ms |" << endl;
+}
+
+int main() {
+    srand(42);
+
+    cout << "--------------------------------------------------------\n";
+    cout << "| Elements   | Patricia           | std::map           |\n";
+    cout << "--------------------------------------------------------\n";
+
+    vector<int> sizes = {100000, 500000, 1000000};
+
+    for (int n : sizes)
+        run_total_bench(n);
+
+    cout << "--------------------------------------------------------\n";
+}
