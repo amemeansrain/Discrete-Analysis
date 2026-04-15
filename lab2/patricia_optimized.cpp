@@ -1,16 +1,12 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <chrono>
-#include <random>
-#include <map>
 #include <algorithm>
-#include <iomanip>
 #include <fstream>
-#include <cstring>
+#include <sstream>
+#include <cstdint>
 
 using namespace std;
-using namespace std::chrono;
 
 struct Node {
     string key;
@@ -19,7 +15,7 @@ struct Node {
     Node *left, *right;
 
     Node(string k, uint64_t v, int b) 
-        : key(k), value(v), bitIndex(b), left(this), right(this) {}
+        : key(std::move(k)), value(v), bitIndex(b), left(this), right(this) {}
 };
 
 class Patricia {
@@ -57,11 +53,20 @@ private:
         return curr;
     }
 
-    void clear(Node* n) {
-        if (!n) return;
-        if (n->left->bitIndex > n->bitIndex) clear(n->left);
-        if (n->right->bitIndex > n->bitIndex) clear(n->right);
-        delete n;
+    // Итеративная очистка дерева. Гарантированно не течет и не валит стек.
+    void clear(Node* root) {
+        if (!root) return;
+        vector<Node*> q;
+        q.push_back(root);
+        size_t head = 0;
+        while (head < q.size()) {
+            Node* n = q[head++];
+            if (n->left->bitIndex > n->bitIndex) q.push_back(n->left);
+            if (n->right->bitIndex > n->bitIndex) q.push_back(n->right);
+        }
+        for (Node* n : q) {
+            delete n;
+        }
     }
 
     void collect(Node* n, vector<pair<string, uint64_t>>& data) const {
@@ -136,6 +141,7 @@ public:
             c->key = p->key;
             c->value = p->value;
 
+            // Ищем узел, поток которого указывает на p
             Node *pp = p, *cc = getBit(p->key, p->bitIndex) ? p->right : p->left;
             while (pp->bitIndex < cc->bitIndex) {
                 pp = cc;
@@ -194,61 +200,40 @@ public:
     }
 };
 
-string gen_random_string(int len) {
-    static const char alphanum[] = "abcdefghijklmnopqrstuvwxyz";
-    string s;
-    s.reserve(len);
-    for (int i = 0; i < len; ++i)
-        s += alphanum[rand() % 26];
-    return s;
-}
-
-void run_total_bench(int N) {
-    vector<string> words;
-    words.reserve(N);
-
-    for (int i = 0; i < N; ++i)
-        words.push_back(gen_random_string(rand() % 33));
-
-    auto p_start = high_resolution_clock::now();
-    {
-        Patricia pat;
-        uint64_t val;
-
-        for (int i = 0; i < N; ++i) pat.insert(words[i], i);
-        for (int i = 0; i < N; ++i) pat.find(words[i], val);
-    }
-    auto p_end = high_resolution_clock::now();
-
-    auto m_start = high_resolution_clock::now();
-    {
-        map<string, uint64_t> mp;
-
-        for (int i = 0; i < N; ++i) mp[words[i]] = i;
-        for (int i = 0; i < N; ++i) mp.find(words[i]);
-    }
-    auto m_end = high_resolution_clock::now();
-
-    auto p_total = duration_cast<milliseconds>(p_end - p_start).count();
-    auto m_total = duration_cast<milliseconds>(m_end - m_start).count();
-
-    cout << "| " << setw(10) << N
-         << " | " << setw(15) << p_total << " ms | "
-         << setw(15) << m_total << " ms |" << endl;
-}
-
 int main() {
-    srand(42);
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
-    cout << "--------------------------------------------------------\n";
-    cout << "| Elements   | Patricia           | std::map           |\n";
-    cout << "--------------------------------------------------------\n";
+    Patricia tree;
+    string line;
 
-    vector<int> sizes = {100000, 500000, 1000000};
+    while (getline(cin, line)) {
+        if (line.empty()) continue;
+        stringstream ss(line);
+        string cmd;
+        ss >> cmd;
 
-    for (int n : sizes)
-        run_total_bench(n);
+        if (cmd == "+") {
+            string key; uint64_t val;
+            ss >> key >> val;
+            cout << (tree.insert(key, val) ? "OK" : "Exist") << "\n";
+        } 
+        else if (cmd == "-") {
+            string key; ss >> key;
+            cout << (tree.erase(key) ? "OK" : "NoSuchWord") << "\n";
+        } 
+        else if (cmd == "!") {
+            string sub, path;
+            ss >> sub >> path;
+            if (sub == "Save") cout << (tree.save(path) ? "OK" : "ERROR") << "\n";
+            else if (sub == "Load") cout << (tree.load(path) ? "OK" : "ERROR") << "\n";
+        } 
+        else {
+            uint64_t val;
+            if (tree.find(cmd, val)) cout << "OK: " << val << "\n";
+            else cout << "NoSuchWord\n";
+        }
+    }
 
-    cout << "--------------------------------------------------------\n";
     return 0;
 }

@@ -35,279 +35,232 @@
 
 \begin{lstlisting}[breaklines=true, postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}]
 #include <iostream>
-#include <string>
 #include <vector>
+#include <string>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <algorithm>
 #include <cstdint>
-#include <cerrno>
-#include <cstring>
 
 using namespace std;
 
 struct Node {
-    string text;
-    uint64_t val;
-    bool is_word;
-    vector<pair<char, Node*>> children;
+    string key;
+    uint64_t value;
+    int bitIndex;
+    Node *left, *right;
 
-    Node(string t = "", uint64_t v = 0, bool w = false)
-        : text(t), val(v), is_word(w) {}
+    Node(string k, uint64_t v, int b) 
+        : key(k), value(v), bitIndex(b), left(this), right(this) {}
 };
 
 class Patricia {
 private:
-    Node* root;
+    Node* header;
 
-    void destroy(Node* curr) {
-        if (!curr) return;
-        for (auto& edge : curr->children) {
-            destroy(edge.second);
-        }
-        delete curr;
+    static string toLower(string s) {
+        for (char& c : s) c = (char)tolower((unsigned char)c);
+        return s;
     }
 
-    bool erase_rec(Node* curr, const string& key, size_t i) {
-        if (i == key.length()) {
-            if (!curr->is_word) return false;
-            curr->is_word = false;
-            return true;
-        }
-        char c = key[i];
-        for (size_t k = 0; k < curr->children.size(); ++k) {
-            if (curr->children[k].first == c) {
-                Node* next_node = curr->children[k].second;
-                size_t j = 0;
-                while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) {
-                    j++;
-                }
-                
-                if (j != next_node->text.length()) return false;
-
-                if (erase_rec(next_node, key, i + j)) {
-                    if (!next_node->is_word && next_node->children.empty()) {
-                        delete next_node;
-                        curr->children.erase(curr->children.begin() + static_cast<long>(k));
-                    } else if (!next_node->is_word && next_node->children.size() == 1) {
-                        Node* only_child = next_node->children[0].second;
-                        next_node->text += only_child->text;
-                        next_node->is_word = only_child->is_word;
-                        next_node->val = only_child->val;
-                        next_node->children = move(only_child->children);
-                        delete only_child;
-                    }
-                    return true;
-                }
-                return false;
-            }
-        }
-        return false;
+    static int getBit(const string& s, int i) {
+        if (i < 0) return 0;
+        size_t byteIdx = i / 8;
+        int bitIdx = 7 - (i % 8);
+        if (byteIdx >= s.size()) return 0;
+        return (s[byteIdx] >> bitIdx) & 1;
     }
 
-    void collect_all(Node* curr, string prefix, vector<pair<string, uint64_t>>& res) const {
-        string current_prefix = prefix + curr->text;
-        if (curr->is_word) res.push_back({current_prefix, curr->val});
-        for (const auto& edge : curr->children) {
-            collect_all(edge.second, current_prefix, res);
+    static int firstDiffBit(const string& a, const string& b) {
+        int maxLen = (int)max(a.size(), b.size()) * 8;
+        for (int i = 0; i < maxLen; ++i) {
+            if (getBit(a, i) != getBit(b, i)) return i;
         }
+        return maxLen;
+    }
+
+    Node* search(const string& key) const {
+        Node* prev = header;
+        Node* curr = header->left;
+        while (prev->bitIndex < curr->bitIndex) {
+            prev = curr;
+            curr = getBit(key, curr->bitIndex) ? curr->right : curr->left;
+        }
+        return curr;
+    }
+
+    void clear(Node* n) {
+        if (!n) return;
+        if (n->left->bitIndex > n->bitIndex) clear(n->left);
+        if (n->right->bitIndex > n->bitIndex) clear(n->right);
+        delete n;
+    }
+
+    void collect(Node* n, vector<pair<string, uint64_t>>& data) const {
+        if (!n) return;
+        data.push_back({n->key, n->value});
+        if (n->left->bitIndex > n->bitIndex) collect(n->left, data);
+        if (n->right->bitIndex > n->bitIndex) collect(n->right, data);
     }
 
 public:
-    Patricia() { root = new Node(); }
-    ~Patricia() { destroy(root); }
-
-    void clear() {
-        destroy(root);
-        root = new Node();
+    Patricia() {
+        header = new Node("", 0, -1);
+        header->left = header; 
     }
 
-    bool insert(const string& key, uint64_t val) {
-        Node* curr = root;
-        size_t i = 0;
-        while (i < key.length()) {
-            char c = key[i];
-            Node* next_node = nullptr;
-            size_t edge_idx = 0;
-            for (; edge_idx < curr->children.size(); ++edge_idx) {
-                if (curr->children[edge_idx].first == c) {
-                    next_node = curr->children[edge_idx].second;
-                    break;
-                }
-            }
+    ~Patricia() {
+        if (header->left != header) clear(header->left);
+        delete header;
+    }
 
-            if (!next_node) {
-                curr->children.push_back({c, new Node(key.substr(i), val, true)});
-                return true;
-            }
-
-            size_t j = 0;
-            while (j < next_node->text.length() && i + j < key.length() && next_node->text[j] == key[i + j]) {
-                j++;
-            }
-
-            if (j == next_node->text.length()) {
-                i += j;
-                if (i == key.length()) {
-                    if (next_node->is_word) return false;
-                    next_node->is_word = true; 
-                    next_node->val = val; 
-                    return true;
-                }
-                curr = next_node;
-            } else {
-                Node* split = new Node(next_node->text.substr(j), next_node->val, next_node->is_word);
-                split->children = move(next_node->children);
-                
-                next_node->text = next_node->text.substr(0, j);
-                next_node->is_word = false;
-                next_node->children.clear();
-                next_node->children.push_back({split->text[0], split});
-                
-                if (i + j == key.length()) {
-                    next_node->is_word = true; 
-                    next_node->val = val;
-                } else {
-                    next_node->children.push_back({key[i + j], new Node(key.substr(i + j), val, true)});
-                }
-                return true;
-            }
+    bool find(const string& k, uint64_t& val) const {
+        string key = toLower(k);
+        Node* res = search(key);
+        if (res != header && res->key == key) {
+            val = res->value;
+            return true;
         }
         return false;
     }
 
-    bool find(const string& key, uint64_t& out_val) const {
-        Node* curr = root; 
-        size_t i = 0;
-        while (i < key.length()) {
-            char c = key[i]; 
-            Node* next = nullptr;
-            for (auto& edge : curr->children) {
-                if (edge.first == c) next = edge.second;
-            }
-            if (!next) return false;
-            
-            size_t j = 0;
-            while (j < next->text.length() && i + j < key.length() && next->text[j] == key[i + j]) {
-                j++;
-            }
-            
-            if (j != next->text.length()) return false;
-            i += j; 
-            curr = next;
+    bool insert(const string& k, uint64_t val) {
+        string key = toLower(k);
+        Node* found = search(key);
+        if (found != header && found->key == key) return false;
+
+        int diff = firstDiffBit(key, found->key);
+        Node* prev = header;
+        Node* curr = header->left;
+
+        while (prev->bitIndex < curr->bitIndex && curr->bitIndex < diff) {
+            prev = curr;
+            curr = getBit(key, curr->bitIndex) ? curr->right : curr->left;
         }
-        if (curr->is_word) { 
-            out_val = curr->val; 
-            return true; 
+
+        Node* newNode = new Node(key, val, diff);
+        if (getBit(key, diff)) {
+            newNode->left = curr;
+            newNode->right = newNode;
+        } else {
+            newNode->left = newNode;
+            newNode->right = curr;
         }
-        return false;
+
+        if (getBit(key, prev->bitIndex)) prev->right = newNode;
+        else prev->left = newNode;
+
+        return true;
     }
 
-    bool erase(const string& key) { 
-        return erase_rec(root, key, 0); 
+    bool erase(const string& k) {
+        string key = toLower(k);
+        Node *gp = nullptr, *p = header, *c = header->left;
+
+        while (p->bitIndex < c->bitIndex) {
+            gp = p; p = c;
+            c = getBit(key, c->bitIndex) ? c->right : c->left;
+        }
+
+        if (c == header || c->key != key) return false;
+
+        if (p != c) {
+            c->key = p->key;
+            c->value = p->value;
+
+            Node *pp = p, *cc = getBit(p->key, p->bitIndex) ? p->right : p->left;
+            while (pp->bitIndex < cc->bitIndex) {
+                pp = cc;
+                cc = getBit(p->key, cc->bitIndex) ? cc->right : cc->left;
+            }
+            if (getBit(p->key, pp->bitIndex)) pp->right = c;
+            else pp->left = c;
+        }
+
+        Node* target = (getBit(key, p->bitIndex) ? p->left : p->right);
+        if (getBit(key, gp->bitIndex)) gp->right = target;
+        else gp->left = target;
+
+        delete p;
+        return true;
     }
 
-    bool save(const string& path, string& err) const {
-        if (path.empty()) { err = "No path provided"; return false; }
+    bool save(const string& path) const {
         ofstream out(path, ios::binary);
-        if (!out) { err = strerror(errno); return false; }
-        
+        if (!out) return false;
+
         vector<pair<string, uint64_t>> data;
-        collect_all(root, "", data);
-        
-        uint64_t sz = data.size();
-        out.write((char*)&sz, sizeof(sz));
-        for (auto& p : data) {
-            uint32_t len = (uint32_t)p.first.length();
+        if (header->left != header) collect(header->left, data);
+
+        uint64_t size = data.size();
+        out.write((char*)&size, sizeof(size));
+        for (auto& item : data) {
+            uint64_t len = item.first.size();
             out.write((char*)&len, sizeof(len));
-            out.write(p.first.data(), len);
-            out.write((char*)&p.second, sizeof(p.second));
+            out.write(item.first.c_str(), len);
+            out.write((char*)&item.second, sizeof(item.second));
         }
         return true;
     }
 
-    bool load(const string& path, string& err) {
-        if (path.empty()) { err = "No path provided"; return false; }
+    bool load(const string& path) {
         ifstream in(path, ios::binary);
-        if (!in) { 
-            clear(); 
-            return true; 
-        }
+        if (!in) return false;
 
-        Patricia temp; 
-        uint64_t sz;
-        if (!in.read((char*)&sz, sizeof(sz))) { 
-            clear(); 
-            return true; 
-        }
-        
-        for (uint64_t i = 0; i < sz; i++) {
-            uint32_t len; 
+        if (header->left != header) clear(header->left);
+        header->left = header;
+
+        uint64_t size;
+        if (!in.read((char*)&size, sizeof(size))) return false;
+
+        for (uint64_t i = 0; i < size; ++i) {
+            uint64_t len;
             if (!in.read((char*)&len, sizeof(len))) return false;
-            if (len > 256) return false;
-            
-            string k(len, '\0'); 
+            string k(len, ' ');
             if (!in.read(&k[0], len)) return false;
-            
-            uint64_t v; 
+            uint64_t v;
             if (!in.read((char*)&v, sizeof(v))) return false;
-            
-            temp.insert(k, v);
+            insert(k, v);
         }
-        swap(root, temp.root);
         return true;
     }
 };
 
 int main() {
-    ios::sync_with_stdio(false); 
+    ios::sync_with_stdio(false);
     cin.tie(nullptr);
-    
-    Patricia dict; 
+
+    Patricia tree;
     string line;
 
     while (getline(cin, line)) {
         if (line.empty()) continue;
+        stringstream ss(line);
+        string cmd;
+        ss >> cmd;
 
-        istringstream iss(line); 
-        string cmd; 
-        iss >> cmd;
-        
         if (cmd == "+") {
-            string w; uint64_t v;
-            if (iss >> w >> v) {
-                for (auto& c : w) c = (char)tolower(c);
-                if (dict.insert(w, v)) cout << "OK\n"; 
-                else cout << "Exist\n";
-            }
-        } else if (cmd == "-") {
-            string w; 
-            if (iss >> w) {
-                for (auto& c : w) c = (char)tolower(c);
-                if (dict.erase(w)) cout << "OK\n"; 
-                else cout << "NoSuchWord\n";
-            }
-        } else if (cmd == "!") {
-            string act, path; 
-            iss >> act >> path;
-            string err;
-
-            if (act == "Save") {
-                if (dict.save(path, err)) cout << "OK\n"; 
-                else cout << "ERROR: " << err << "\n";
-            } else if (act == "Load") {
-                if (dict.load(path, err)) cout << "OK\n"; 
-                else cout << "ERROR: " << err << "\n";
-            }
-        } else {
-            string w = cmd; 
-            for (auto& c : w) c = (char)tolower(c);
-
-            uint64_t v; 
-            if (dict.find(w, v)) cout << "OK: " << v << "\n"; 
+            string key; uint64_t val;
+            ss >> key >> val;
+            cout << (tree.insert(key, val) ? "OK" : "Exist") << "\n";
+        } 
+        else if (cmd == "-") {
+            string key; ss >> key;
+            cout << (tree.erase(key) ? "OK" : "NoSuchWord") << "\n";
+        } 
+        else if (cmd == "!") {
+            string sub, path;
+            ss >> sub >> path;
+            if (sub == "Save") cout << (tree.save(path) ? "OK" : "ERROR") << "\n";
+            else if (sub == "Load") cout << (tree.load(path) ? "OK" : "ERROR") << "\n";
+        } 
+        else {
+            uint64_t val;
+            if (tree.find(cmd, val)) cout << "OK: " << val << "\n";
             else cout << "NoSuchWord\n";
         }
     }
+
     return 0;
 }
 \end{lstlisting}
