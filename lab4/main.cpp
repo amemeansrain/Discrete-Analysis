@@ -6,7 +6,7 @@ struct Position {
     int word;
 };
 
-string normalizeWord(string s) {
+string toLower(string s) {
     for (char &c : s) {
         if ('A' <= c && c <= 'Z') {
             c = char(c - 'A' + 'a');
@@ -24,7 +24,7 @@ vector<int> splitLineToIds(
     string word;
 
     while (ss >> word) {
-        word = normalizeWord(word);
+        word = toLower(word);
 
         auto it = ids.find(word);
         if (it == ids.end()) {
@@ -39,8 +39,6 @@ vector<int> splitLineToIds(
     return result;
 }
 
-// suff[i] = длина наибольшего суффикса P[0..i],
-// который совпадает с суффиксом всего образца P.
 vector<int> buildSuffixes(const vector<int> &pattern) {
     int m = (int)pattern.size();
     vector<int> suff(m, 0);
@@ -75,8 +73,6 @@ vector<int> buildSuffixes(const vector<int> &pattern) {
     return suff;
 }
 
-// Таблица хорошего суффикса для Бойера-Мура.
-// goodSuffix[i] = сдвиг при несовпадении в позиции i образца.
 vector<int> buildGoodSuffix(const vector<int> &pattern) {
     int m = (int)pattern.size();
     vector<int> goodSuffix(m, m);
@@ -118,7 +114,6 @@ vector<int> apostolicoGiancarlo(
     vector<int> suff = buildSuffixes(pattern);
     vector<int> goodSuffix = buildGoodSuffix(pattern);
 
-    // last[x] = последнее вхождение слова x в образце.
     unordered_map<int, int> last;
     last.reserve(m * 2 + 1);
 
@@ -126,8 +121,6 @@ vector<int> apostolicoGiancarlo(
         last[pattern[i]] = i;
     }
 
-    // skip[pos] хранит, сколько правых слов образца уже совпадало
-    // при сравнении, которое заканчивалось в позиции pos текста.
     vector<int> skip(n, 0);
 
     int shift = 0;
@@ -146,15 +139,11 @@ vector<int> apostolicoGiancarlo(
                     break;
                 }
             } else {
-                // Нам не нужно использовать больше символов, чем осталось слева.
                 known = min(known, i + 1);
 
-                // Если соответствующий кусок образца совпадает с суффиксом образца,
-                // можно не сравнивать эти known слов повторно.
                 if (suff[i] >= known) {
                     i -= known;
                 } else {
-                    // Иначе мы знаем, что внутри этого блока есть несовпадение.
                     i -= suff[i];
                     break;
                 }
@@ -169,7 +158,6 @@ vector<int> apostolicoGiancarlo(
 
             skip[endPos] = m;
 
-            // Полное совпадение: сдвигаемся по правилу хорошего суффикса.
             shift += goodSuffix[0];
         } else {
             skip[endPos] = matched;
@@ -231,7 +219,7 @@ int main() {
         while (ss >> word) {
             ++wordNumber;
 
-            word = normalizeWord(word);
+            word = toLower(word);
 
             auto it = ids.find(word);
             int id;
