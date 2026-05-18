@@ -1,268 +1,304 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-struct Node {
-    unordered_map<unsigned char, int> next;
+string s;
+vector<int> sa, rnk, lcp, lg;
+vector<vector<int>> st;
+
+void trim_cr(string& x) {
+    if (!x.empty() && x.back() == '\r') x.pop_back();
+}
+
+vector<int> build_sa(string t) {
+    t += '\0';
+
+    int n = t.size();
+    vector<int> p(n), c(n), pn(n), cn(n), cnt(max(256, n), 0);
+
+    for (unsigned char ch : t) cnt[ch]++;
+    for (int i = 1; i < 256; ++i) cnt[i] += cnt[i - 1];
+    for (int i = 0; i < n; ++i) p[--cnt[(unsigned char)t[i]]] = i;
+
+    int cls = 1;
+    c[p[0]] = 0;
+
+    for (int i = 1; i < n; ++i) {
+        if (t[p[i]] != t[p[i - 1]]) ++cls;
+        c[p[i]] = cls - 1;
+    }
+
+    for (int len = 1; len < n && cls < n; len <<= 1) {
+        for (int i = 0; i < n; ++i) {
+            pn[i] = p[i] - len;
+            if (pn[i] < 0) pn[i] += n;
+        }
+
+        fill(cnt.begin(), cnt.begin() + cls, 0);
+
+        for (int x : pn) cnt[c[x]]++;
+        for (int i = 1; i < cls; ++i) cnt[i] += cnt[i - 1];
+
+        for (int i = n - 1; i >= 0; --i) {
+            int x = pn[i];
+            p[--cnt[c[x]]] = x;
+        }
+
+        cn[p[0]] = 0;
+        int ncls = 1;
+
+        for (int i = 1; i < n; ++i) {
+            pair<int, int> cur = {c[p[i]], c[(p[i] + len) % n]};
+            pair<int, int> prv = {c[p[i - 1]], c[(p[i - 1] + len) % n]};
+
+            if (cur != prv) ++ncls;
+            cn[p[i]] = ncls - 1;
+        }
+
+        c.swap(cn);
+        cls = ncls;
+    }
+
+    p.erase(p.begin());
+    return p;
+}
+
+void build_lcp() {
+    int n = s.size();
+
+    rnk.assign(n, 0);
+    lcp.assign(n, 0);
+
+    for (int i = 0; i < n; ++i) {
+        rnk[sa[i]] = i;
+    }
+
+    int k = 0;
+
+    for (int i = 0; i < n; ++i) {
+        int pos = rnk[i];
+
+        if (pos == 0) continue;
+
+        int j = sa[pos - 1];
+
+        while (i + k < n && j + k < n && s[i + k] == s[j + k]) {
+            ++k;
+        }
+
+        lcp[pos] = k;
+
+        if (k) --k;
+    }
+}
+
+void build_rmq() {
+    int n = lcp.size();
+
+    lg.assign(n + 1, 0);
+
+    for (int i = 2; i <= n; ++i) {
+        lg[i] = lg[i / 2] + 1;
+    }
+
+    st.assign(lg[n] + 1, vector<int>(n));
+    st[0] = lcp;
+
+    for (int k = 1; k < (int)st.size(); ++k) {
+        int len = 1 << k;
+        int half = len >> 1;
+
+        for (int i = 0; i + len <= n; ++i) {
+            st[k][i] = min(st[k - 1][i], st[k - 1][i + half]);
+        }
+    }
+}
+
+int get_lcp(int i, int j) {
+    if (i == j) return (int)s.size() - sa[i];
+
+    if (i > j) swap(i, j);
+
+    ++i;
+
+    int len = j - i + 1;
+    int k = lg[len];
+
+    return min(st[k][i], st[k][j - (1 << k) + 1]);
+}
+
+pair<int, int> cmp_suffix(int pos, const string& p, int known) {
+    int n = s.size();
+    int m = p.size();
+    int i = known;
+
+    while (i < m && pos + i < n && s[pos + i] == p[i]) {
+        ++i;
+    }
+
+    if (i == m && pos + i == n) return {0, i};
+    if (i == m) return {1, i};
+    if (pos + i == n) return {-1, i};
+
+    return {(unsigned char)s[pos + i] < (unsigned char)p[i] ? -1 : 1, i};
+}
+
+int lower_bound_lcp(const string& p) {
+    int n = sa.size();
+
+    auto lc = cmp_suffix(sa[0], p, 0);
+    if (lc.first >= 0) return 0;
+
+    auto rc = cmp_suffix(sa[n - 1], p, 0);
+    if (rc.first < 0) return n;
 
     int l = 0;
-    int r = -1;
-    int link = -1;
-    int parent = -1;
+    int r = n - 1;
+    int lcp_l = lc.second;
+    int lcp_r = rc.second;
 
-    int suffixIndex = -1;
-};
+    while (r - l > 1) {
+        int m = (l + r) / 2;
 
-class SuffixTree {
-private:
-    string s;
-    int originalLen;
+        if (lcp_l >= lcp_r) {
+            int x = get_lcp(l, m);
 
-    vector<Node> tree;
+            if (x > lcp_l) {
+                l = m;
+            } else if (x < lcp_l) {
+                r = m;
+                lcp_r = x;
+            } else {
+                auto c = cmp_suffix(sa[m], p, lcp_l);
 
-    int root = 0;
+                if (c.first < 0) {
+                    l = m;
+                    lcp_l = c.second;
+                } else {
+                    r = m;
+                    lcp_r = c.second;
+                }
+            }
+        } else {
+            int x = get_lcp(m, r);
 
-    int activeNode = 0;
-    int activeEdge = -1;
-    int activeLen = 0;
+            if (x > lcp_r) {
+                r = m;
+            } else if (x < lcp_r) {
+                l = m;
+                lcp_l = x;
+            } else {
+                auto c = cmp_suffix(sa[m], p, lcp_r);
 
-    int remaining = 0;
-    int leafEnd = -1;
-    int lastNewNode = -1;
-
-    int newNode(int l, int r, int parent) {
-        Node v;
-        v.l = l;
-        v.r = r;
-        v.parent = parent;
-        v.link = root;
-
-        tree.push_back(std::move(v));
-        return (int)tree.size() - 1;
+                if (c.first < 0) {
+                    l = m;
+                    lcp_l = c.second;
+                } else {
+                    r = m;
+                    lcp_r = c.second;
+                }
+            }
+        }
     }
 
-    int edgeLength(int v) const {
-        int right = (tree[v].r == -1 ? leafEnd : tree[v].r);
-        return right - tree[v].l + 1;
-    }
+    return r;
+}
 
-    bool walkDown(int v) {
-        int len = edgeLength(v);
+bool next_key(const string& p, string& q) {
+    q = p;
 
-        if (activeLen >= len) {
-            activeEdge += len;
-            activeLen -= len;
-            activeNode = v;
+    for (int i = (int)q.size() - 1; i >= 0; --i) {
+        unsigned char c = q[i];
+
+        if (c < 255) {
+            q[i] = char(c + 1);
+            q.resize(i + 1);
             return true;
         }
-
-        return false;
     }
 
-    void extend(int pos) {
-        leafEnd = pos;
-        ++remaining;
-        lastNewNode = -1;
+    return false;
+}
 
-        while (remaining > 0) {
-            if (activeLen == 0) {
-                activeEdge = pos;
-            }
+void add_int(string& out, int x) {
+    char buf[16];
+    int len = 0;
 
-            unsigned char cur = static_cast<unsigned char>(s[activeEdge]);
+    if (x == 0) {
+        buf[len++] = '0';
+    } else {
+        char rev[16];
+        int cnt = 0;
 
-            auto it = tree[activeNode].next.find(cur);
+        while (x) {
+            rev[cnt++] = char('0' + x % 10);
+            x /= 10;
+        }
 
-            if (it == tree[activeNode].next.end()) {
-                int leaf = newNode(pos, -1, activeNode);
-                tree[activeNode].next[cur] = leaf;
-
-                if (lastNewNode != -1) {
-                    tree[lastNewNode].link = activeNode;
-                    lastNewNode = -1;
-                }
-            } else {
-                int nxt = it->second;
-
-                if (walkDown(nxt)) {
-                    continue;
-                }
-
-                if (s[tree[nxt].l + activeLen] == s[pos]) {
-                    if (lastNewNode != -1 && activeNode != root) {
-                        tree[lastNewNode].link = activeNode;
-                        lastNewNode = -1;
-                    }
-
-                    ++activeLen;
-                    break;
-                }
-
-                int splitEnd = tree[nxt].l + activeLen - 1;
-                int split = newNode(tree[nxt].l, splitEnd, activeNode);
-
-                tree[activeNode].next[cur] = split;
-
-                tree[nxt].l += activeLen;
-                tree[nxt].parent = split;
-
-                tree[split].next[static_cast<unsigned char>(s[tree[nxt].l])] = nxt;
-
-                int leaf = newNode(pos, -1, split);
-                tree[split].next[static_cast<unsigned char>(s[pos])] = leaf;
-
-                if (lastNewNode != -1) {
-                    tree[lastNewNode].link = split;
-                }
-
-                lastNewNode = split;
-            }
-
-            --remaining;
-
-            if (activeNode == root && activeLen > 0) {
-                --activeLen;
-                activeEdge = pos - remaining + 1;
-            } else if (activeNode != root) {
-                activeNode = tree[activeNode].link;
-            }
+        while (cnt) {
+            buf[len++] = rev[--cnt];
         }
     }
 
-    void setSuffixIndexByDFS(int v, int depth) {
-        if (tree[v].next.empty()) {
-            tree[v].suffixIndex = (int)s.size() - depth;
-            return;
-        }
-
-        for (auto &kv : tree[v].next) {
-            int to = kv.second;
-            setSuffixIndexByDFS(to, depth + edgeLength(to));
-        }
-    }
-
-    void collectLeaves(int v, vector<int>& ans) const {
-        if (tree[v].next.empty()) {
-            int pos = tree[v].suffixIndex;
-
-            if (0 <= pos && pos < originalLen) {
-                ans.push_back(pos + 1);
-            }
-
-            return;
-        }
-
-        for (const auto &kv : tree[v].next) {
-            collectLeaves(kv.second, ans);
-        }
-    }
-
-public:
-    explicit SuffixTree(const string& text) {
-        originalLen = (int)text.size();
-
-        s = text;
-        s.push_back('\0');
-
-        tree.reserve(2 * (int)s.size() + 2);
-
-        tree.push_back(Node());
-        tree[root].link = root;
-
-        activeNode = root;
-
-        for (int i = 0; i < (int)s.size(); ++i) {
-            extend(i);
-        }
-
-        setSuffixIndexByDFS(root, 0);
-    }
-
-    vector<int> findOccurrences(const string& pattern) const {
-        vector<int> ans;
-
-        if (pattern.empty()) {
-            return ans;
-        }
-
-        int v = root;
-        int i = 0;
-        int m = (int)pattern.size();
-
-        while (i < m) {
-            unsigned char c = static_cast<unsigned char>(pattern[i]);
-
-            auto it = tree[v].next.find(c);
-
-            if (it == tree[v].next.end()) {
-                return ans;
-            }
-
-            int to = it->second;
-            int len = edgeLength(to);
-
-            for (int j = 0; j < len && i < m; ++j, ++i) {
-                if (s[tree[to].l + j] != pattern[i]) {
-                    return {};
-                }
-            }
-
-            if (i == m) {
-                collectLeaves(to, ans);
-                sort(ans.begin(), ans.end());
-                return ans;
-            }
-
-            v = to;
-        }
-
-        return ans;
-    }
-};
-
-static void removeTrailingCR(string& x) {
-    if (!x.empty() && x.back() == '\r') {
-        x.pop_back();
-    }
+    out.append(buf, buf + len);
 }
 
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    string text;
+    if (!getline(cin, s)) return 0;
+    trim_cr(s);
 
-    if (!getline(cin, text)) {
-        return 0;
-    }
+    if (s.empty()) return 0;
 
-    removeTrailingCR(text);
+    sa = build_sa(s);
+    build_lcp();
+    build_rmq();
 
-    SuffixTree st(text);
+    string p;
+    vector<int> ans;
+    string out;
 
-    string pattern;
-    int number = 1;
+    out.reserve(1 << 20);
 
-    while (getline(cin, pattern)) {
-        removeTrailingCR(pattern);
+    for (int num = 1; getline(cin, p); ++num) {
+        trim_cr(p);
 
-        vector<int> occurrences = st.findOccurrences(pattern);
+        if (p.empty() || p.size() > s.size()) continue;
 
-        if (!occurrences.empty()) {
-            cout << number << ": ";
+        int first = lower_bound_lcp(p);
 
-            for (size_t i = 0; i < occurrences.size(); ++i) {
-                if (i) {
-                    cout << ", ";
-                }
+        string q;
+        int last = next_key(p, q) ? lower_bound_lcp(q) : (int)sa.size();
 
-                cout << occurrences[i];
-            }
+        if (first >= last) continue;
 
-            cout << '\n';
+        ans.clear();
+        ans.reserve(last - first);
+
+        for (int i = first; i < last; ++i) {
+            ans.push_back(sa[i] + 1);
         }
 
-        ++number;
+        sort(ans.begin(), ans.end());
+
+        add_int(out, num);
+        out += ": ";
+
+        for (int i = 0; i < (int)ans.size(); ++i) {
+            if (i) out += ", ";
+            add_int(out, ans[i]);
+        }
+
+        out += '\n';
+
+        if (out.size() > (1 << 20)) {
+            cout << out;
+            out.clear();
+        }
     }
+
+    cout << out;
 
     return 0;
 }
